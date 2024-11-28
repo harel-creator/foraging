@@ -156,21 +156,15 @@ void CFootBotForaging::Init(TConfigurationNode& t_node) {
    /*
     * Initialize other stuff
     */
-   /*
-   // Static counter to generate a unique ID for each instance
-   static int robot_counter = 1;
-   int unique_id = robot_counter++;
-    
-    // Convert the ID to a string
-   m_robot_id = "robot_" + std::to_string(unique_id);
-   LOG << "Robot initialized with ID: " << m_robot_id << std::endl;
-  
+   
+   
+   LOG << "Robot initialized with ID: " << GetId() << std::endl;
    // Create a unique log file for each robot
-   std::string filename = "collision_log_" + m_robot_id + ".txt";
-   m_log_file.open(filename, std::ios::out | std::ios::app);
+   std::string filename = "collision_log_" + GetId() + ".txt";
+   m_log_file.open(filename, std::ios::out | std::ios::trunc);
    if (!m_log_file.is_open()) {
-      LOGERR << "Failed to open log file for robot " << m_robot_id << std::endl;
-   }*/
+      LOGERR << "Failed to open log file for robot " << GetId() << std::endl;
+   }
 
    
 
@@ -224,7 +218,9 @@ void CFootBotForaging::Reset() {
    this->m_last_behavior_durations.assign(NUMBER_OF_BEHAVIORS, 0);
    this->m_longest_non_collision_times.assign(NUMBER_OF_BEHAVIORS, 0);
    this->m_shortest_collision_durations.assign(NUMBER_OF_BEHAVIORS, std::numeric_limits<UInt64>::max());
-   
+   this->m_collision_number = 0;
+   this->m_SBehaviorMetrics.resize(NUMBER_OF_BEHAVIORS);
+   this->repel_vector = CVector2::ZERO;
 }
 
 /****************************************/
@@ -276,6 +272,34 @@ CVector2 CFootBotForaging::CalculateVectorToLight() {
    }
 }
 
+void CFootBotForaging::LogCollisionDetails(UInt64 collision_start_tick, UInt64 collision_end_tick, 
+                         ECollisionBehavior current_behavior) {
+    if (m_log_file.is_open()) {
+        // Collision duration
+        UInt64 collision_duration = collision_end_tick - collision_start_tick;
+        if (collision_duration > 26){
+         LOG<<"ERROR in tick "<< collision_end_tick<< std::endl;
+        }
+        // Log details
+        m_log_file << "Collision Start Tick: " << collision_start_tick << "\n";
+        m_log_file << "Collision End Tick: " << collision_end_tick << "\n";
+        m_log_file << "Collision Duration: " << collision_duration << " ticks\n";
+        m_log_file << "Behavior: " << BehaviorToString(current_behavior) << "\n";
+        m_log_file << "UCB Scores:\n";
+
+        // Log UCB scores for all behaviors
+        for (size_t i = 0; i < m_SBehaviorMetrics.size(); ++i) {
+            const auto& metrics = m_SBehaviorMetrics[i];
+            m_log_file << "  " << BehaviorToString(static_cast<ECollisionBehavior>(i)) << ": "
+                            << std::fixed << std::setprecision(3)
+                            << metrics.ucb_score << "\n";
+        }
+
+        m_log_file << "---------------------------------\n";
+    }
+}
+
+
 std::string CFootBotForaging::BehaviorToString(ECollisionBehavior e) const {
     switch (e) {
         case TURN_180: return "TURN_180";
@@ -319,33 +343,95 @@ void CFootBotForaging::ChooseRandomBehavior() {
     
 
     // Log the chosen behavior
-    LOG << "Robot " << m_robot_id << " chose behavior: " << BehaviorToString(m_currentCollisionBehavior) << std::endl;
+    //LOG << "Robot " << m_robot_id << " chose behavior: " << BehaviorToString(m_currentCollisionBehavior) << std::endl;
 }
 
+void CFootBotForaging::ChooseBehaviorUsingUCB() {
+    double exploration_factor = 1.0; // Adjust exploration factor as needed
+
+    int best_behavior = 0;
+    double highest_ucb_score = -std::numeric_limits<double>::max();
+
+    for (size_t i = 0; i < m_SBehaviorMetrics.size(); ++i) {
+        auto& metrics = m_SBehaviorMetrics[i];
+
+        // Update UCB score for explored behaviors
+        if (metrics.times_selected > 0) {
+            double avg_reward = metrics.total_collision_time / metrics.times_selected;
+            metrics.ucb_score = -avg_reward + exploration_factor * sqrt(log(static_cast<double>(m_collision_number)) / metrics.times_selected);
+        }
+
+        // Find the behavior with the highest UCB score
+        if (metrics.ucb_score > highest_ucb_score) {
+            highest_ucb_score = metrics.ucb_score;
+            best_behavior = i;
+        }
+    }
+
+    // Set the chosen behavior
+    m_currentCollisionBehavior = static_cast<ECollisionBehavior>(best_behavior);
+}
+
+CVector2 CFootBotForaging::BehaviorStop(){
+   return CVector2(0.0f,0.0f);
+}
+CVector2 CFootBotForaging::BehaviorDefault(CVector2 cDiffusionVector){
+   return -(cDiffusionVector.Normalize());
+}
+CVector2 CFootBotForaging::BehaviorRepel(CVector2 cDiffusionVector){
+   if ((this->m_ticks_in_collisin < 21) || (this->m_ticks_in_collisin > (MAX_COLLISION_DURATION_TICKS -21))){
+      return CVector2(-1.0f,-7.0f);
+      //return -repel_vector;
+   }
+   else{
+      return CVector2(1.0f,0.0f);
+   }
+   
+}
+CVector2 CFootBotForaging::BehaviorTurn(CVector2 cDiffusionVector){
+   cDiffusionVector = CVector2::X;
+   return -(cDiffusionVector.Rotate(CRadians(1.0)));
+}
 
 /****************************************/
 CVector2 CFootBotForaging::handleCollision(CVector2 cDiffusionVector) {
-   return CVector2(0.0f,0.0f);
+
    switch (this->m_currentCollisionBehavior) {
-      
       case TURN_180: 
-      //actally kindda turn left
-      cDiffusionVector = CVector2::X;
-      return -(cDiffusionVector.Rotate(CRadians(1.0)));
-
+         //actally kindda turn left
+         return BehaviorTurn(cDiffusionVector);
       case STOP:
-         return CVector2(0.0f,0.0f);  // Make the robot spin in place
-
+         return BehaviorStop();
       case DEFAULT:
-         return -(cDiffusionVector.Normalize());  // the default way
-
+         return BehaviorDefault(cDiffusionVector);
       default:
-         return -(cDiffusionVector.Normalize());
+         return BehaviorDefault(cDiffusionVector);
    }
-
 }
 
+CVector2 CFootBotForaging::Repel() {
+
+
+    // Normalize the resulting vector to ensure consistent speed
+    if (this->repel_vector.Length() > 0.0) {
+        this->repel_vector.Normalize();
+    }
+
+    // Scale the vector by the repel speed
+    return this->repel_vector;
+}
+
+
 CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
+   if ((m_ticks_in_collisin < MAX_COLLISION_DURATION_TICKS)&&(m_currentCollisionBehavior == REPEL)){
+      m_ticks_in_collisin ++;
+      return BehaviorRepel(CVector2::ZERO);
+   }
+   //remove this line
+   this->m_ticks_in_collisin=0;
+   m_currentCollisionBehavior = NUMBER_OF_BEHAVIORS;
+   this->m_collisionEnded = true;
+
     const CCI_FootBotProximitySensor::TReadings& tProxReads = m_pcProximity->GetReadings();
     CVector2 cDiffusionVector;
     for(size_t i = 0; i < tProxReads.size(); ++i) {
@@ -360,9 +446,16 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
         this->m_collisionEnded = true;
         b_collision = false;
 
+         
+
         if (was_in_collision) {
             // Collision just ended
 
+            // Add one to the specific collision counter
+            this->m_SBehaviorMetrics[static_cast<int>(this->m_currentCollisionBehavior)].times_selected +=1;
+            // Add the douretion of the collision just add so we can update the avg reward next time
+            this->m_SBehaviorMetrics[static_cast<int>(this->m_currentCollisionBehavior)].total_collision_time += (current_tick - m_collision_start_tick);
+            
             //Calculate the duration of the collision just ended
             UInt64 collision_duration_ticks = current_tick - m_collision_start_tick;
             
@@ -376,8 +469,8 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
             }
             
             // Log data
-            LogCollisionData(collision_duration_ticks, this->m_last_non_collision_duration, current_tick);
-            
+            //LogCollisionData(collision_duration_ticks, this->m_last_non_collision_duration, current_tick);
+            LogCollisionDetails(m_collision_start_tick, current_tick, m_currentCollisionBehavior);
             // Reset non-collision timer
             m_non_collision_start_tick = current_tick;
         }
@@ -390,13 +483,33 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
       
         //m_collisionEnded = false;
         b_collision = true;
+        
+
+        this->m_collision_number ++;
+        UInt64 non_collision_duration_ticks = current_tick - m_non_collision_start_tick;
+        if(!was_in_collision){ 
+         m_collision_start_tick = current_tick; // Start collision timer
+        }
+        m_collisionEnded = false;
+        UInt64 collision_duration = current_tick - m_collision_start_tick;
+        m_ticks_in_collisin = collision_duration;
+        m_currentCollisionBehavior = REPEL;
+        repel_vector = cDiffusionVector;
+        return BehaviorRepel(cDiffusionVector);
+      
+       for (const auto& sensor_reading : m_pcProximity->GetReadings()) {
+        // Add the vector in the opposite direction of the obstacle
+        this->repel_vector -= CVector2(sensor_reading.Value, 0.0).Rotate(sensor_reading.Angle);
+       }
       
         if (!was_in_collision) {
             // Collision just started
             
+            // Add one to the total collision counter
+            this->m_collision_number ++;
+
             // The time of free travel, we'll be use in the ML
             UInt64 non_collision_duration_ticks = current_tick - m_non_collision_start_tick;
-            m_collision_start_tick = current_tick;
             
             if (non_collision_duration_ticks > m_longest_non_collision_times[m_currentCollisionBehavior]) {
                 m_longest_non_collision_times[m_currentCollisionBehavior] = non_collision_duration_ticks;
@@ -405,8 +518,33 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
             m_last_non_collision_duration = current_tick - m_non_collision_start_tick;
             m_collision_start_tick = current_tick; // Start collision timer
             m_collisionEnded = false;
-            ChooseRandomBehavior();
+            //ChooseRandomBehavior();
+            
+            ChooseBehaviorUsingUCB();
         }
+
+         //Check if the collision taking too long. If it is, change the behavior
+         //UInt64 collision_duration = current_tick - m_collision_start_tick; //need this line
+         m_ticks_in_collisin = collision_duration;
+         // Check if the collision has exceeded the maximum allowed duration
+         if (collision_duration > MAX_COLLISION_DURATION_TICKS) {
+            this->m_collision_number ++;
+         // Log the timeout event
+            LOG << "[Robot " << GetId() << "] Collision timeout reached. Switching behavior.\n";
+            LogCollisionDetails(m_collision_start_tick, current_tick, m_currentCollisionBehavior);
+
+            // Collision-ending updates
+            // Add one to the specific collision counter
+            this->m_SBehaviorMetrics[static_cast<int>(this->m_currentCollisionBehavior)].times_selected +=1;
+            // Add the douretion of the collision just add so we can update the avg reward next time
+            this->m_SBehaviorMetrics[static_cast<int>(this->m_currentCollisionBehavior)].total_collision_time += MAX_COLLISION_DURATION_TICKS;
+            
+            // Re-choose behavior using UCB
+            ChooseBehaviorUsingUCB();
+
+            // Reset collision start tick for the new behavior
+            m_collision_start_tick = current_tick;
+         }
       return handleCollision(cDiffusionVector);
     }
 }

@@ -352,6 +352,7 @@ private:
     TURN_180,
     STOP,
     DEFAULT,
+    REPEL,
     NUMBER_OF_BEHAVIORS
    };
 
@@ -371,12 +372,43 @@ private:
    // true mean 'yes, i have ended' and false 'in the mddle'
    bool m_collisionEnded ;
    ECollisionBehavior m_currentCollisionBehavior;
-   std::string m_robot_id;   // Unique ID for each robot
 
    // Method for logging data
    void LogCollisionData(UInt64 collision_duration_ticks, UInt64 non_collision_duration_ticks, UInt64 collision_end_tick);
    std::string BehaviorToString(ECollisionBehavior e) const;
    void ChooseRandomBehavior();
+   CVector2 Repel();
+   CVector2 BehaviorStop();
+   CVector2 BehaviorDefault(CVector2 cDiffusionVector);
+   CVector2 BehaviorRepel(CVector2 cDiffusionVector);
+   CVector2 BehaviorTurn(CVector2 cDiffusionVector);
+   UInt64 m_collision_number;
+   UInt64 m_ticks_in_collisin;
+   void ChooseBehaviorUsingUCB();
+      
+      //this struct reoresent a specipic type of behavior and store its data
+      struct SBehaviorMetrics {
+      UInt64 times_selected;        // Number of times this behavior was selected
+      double total_collision_time;   // Total time spent in collisions for this behavior
+      double ucb_score;              // UCB score for this behavior
+
+      // Constructor to initialize default values
+      SBehaviorMetrics()
+         : times_selected(0),
+            total_collision_time(0.0),
+            // Unexplored behaviors start with max UCB score to make sure it will be choosen
+            ucb_score(std::numeric_limits<double>::max()) 
+            {}
+      };
+
+   std::vector<SBehaviorMetrics> m_SBehaviorMetrics;
+   CVector2 repel_vector;
+   // Maximum duration for a single collision before switching behavior
+   const UInt64 MAX_COLLISION_DURATION_TICKS = 60;
+   void LogCollisionDetails(UInt64 collision_start_tick, UInt64 collision_end_tick, 
+                         ECollisionBehavior current_behavior);
+   
+
 };
 
 #endif
