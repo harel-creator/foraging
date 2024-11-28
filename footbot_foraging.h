@@ -377,7 +377,6 @@ private:
    void LogCollisionData(UInt64 collision_duration_ticks, UInt64 non_collision_duration_ticks, UInt64 collision_end_tick);
    std::string BehaviorToString(ECollisionBehavior e) const;
    void ChooseRandomBehavior();
-   CVector2 Repel();
    CVector2 BehaviorStop();
    CVector2 BehaviorDefault(CVector2 cDiffusionVector);
    CVector2 BehaviorRepel(CVector2 cDiffusionVector);

@@ -277,7 +277,7 @@ void CFootBotForaging::LogCollisionDetails(UInt64 collision_start_tick, UInt64 c
     if (m_log_file.is_open()) {
         // Collision duration
         UInt64 collision_duration = collision_end_tick - collision_start_tick;
-        if (collision_duration > 26){
+        if (collision_duration > MAX_COLLISION_DURATION_TICKS){
          LOG<<"ERROR in tick "<< collision_end_tick<< std::endl;
         }
         // Log details
@@ -305,6 +305,7 @@ std::string CFootBotForaging::BehaviorToString(ECollisionBehavior e) const {
         case TURN_180: return "TURN_180";
         case STOP: return "STOP";
         case DEFAULT: return "DEFAULT";
+        case REPEL : return "REPEl";
         default: return "UNKNOWN";
     }
 }
@@ -370,6 +371,7 @@ void CFootBotForaging::ChooseBehaviorUsingUCB() {
 
     // Set the chosen behavior
     m_currentCollisionBehavior = static_cast<ECollisionBehavior>(best_behavior);
+    m_currentCollisionBehavior = REPEL; //remove this, just for testing
 }
 
 CVector2 CFootBotForaging::BehaviorStop(){
@@ -379,15 +381,18 @@ CVector2 CFootBotForaging::BehaviorDefault(CVector2 cDiffusionVector){
    return -(cDiffusionVector.Normalize());
 }
 CVector2 CFootBotForaging::BehaviorRepel(CVector2 cDiffusionVector){
-   if ((this->m_ticks_in_collisin < 21) || (this->m_ticks_in_collisin > (MAX_COLLISION_DURATION_TICKS -21))){
-      return CVector2(-1.0f,-7.0f);
-      //return -repel_vector;
+   //Its take the footboot about 22 ticks in this angle to make ~180 turn
+   // He do so in the beggining of the collision and in the end of it
+   if ((this->m_ticks_in_collisin < 22) || (this->m_ticks_in_collisin > (MAX_COLLISION_DURATION_TICKS -22))){
+      return CVector2(1.0f,1.0f).Rotate(CRadians::PI);
    }
+   // If the turn is over, move forward
    else{
       return CVector2(1.0f,0.0f);
-   }
+   }   
    
 }
+
 CVector2 CFootBotForaging::BehaviorTurn(CVector2 cDiffusionVector){
    cDiffusionVector = CVector2::X;
    return -(cDiffusionVector.Rotate(CRadians(1.0)));
@@ -395,7 +400,6 @@ CVector2 CFootBotForaging::BehaviorTurn(CVector2 cDiffusionVector){
 
 /****************************************/
 CVector2 CFootBotForaging::handleCollision(CVector2 cDiffusionVector) {
-
    switch (this->m_currentCollisionBehavior) {
       case TURN_180: 
          //actally kindda turn left
@@ -404,33 +408,23 @@ CVector2 CFootBotForaging::handleCollision(CVector2 cDiffusionVector) {
          return BehaviorStop();
       case DEFAULT:
          return BehaviorDefault(cDiffusionVector);
+      case REPEL:
+         return BehaviorRepel(cDiffusionVector);
       default:
          return BehaviorDefault(cDiffusionVector);
    }
 }
 
-CVector2 CFootBotForaging::Repel() {
-
-
-    // Normalize the resulting vector to ensure consistent speed
-    if (this->repel_vector.Length() > 0.0) {
-        this->repel_vector.Normalize();
-    }
-
-    // Scale the vector by the repel speed
-    return this->repel_vector;
-}
 
 
 CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
+   // This section is to make sure the repel go to the end, 
+   // and not just until there is a clear path
    if ((m_ticks_in_collisin < MAX_COLLISION_DURATION_TICKS)&&(m_currentCollisionBehavior == REPEL)){
       m_ticks_in_collisin ++;
       return BehaviorRepel(CVector2::ZERO);
    }
-   //remove this line
-   this->m_ticks_in_collisin=0;
-   m_currentCollisionBehavior = NUMBER_OF_BEHAVIORS;
-   this->m_collisionEnded = true;
+   
 
     const CCI_FootBotProximitySensor::TReadings& tProxReads = m_pcProximity->GetReadings();
     CVector2 cDiffusionVector;
@@ -469,7 +463,6 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
             }
             
             // Log data
-            //LogCollisionData(collision_duration_ticks, this->m_last_non_collision_duration, current_tick);
             LogCollisionDetails(m_collision_start_tick, current_tick, m_currentCollisionBehavior);
             // Reset non-collision timer
             m_non_collision_start_tick = current_tick;
@@ -478,60 +471,38 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
         return CVector2::X;
     }
     else {
-      
       //This section happen when there is a collision
       
-        //m_collisionEnded = false;
         b_collision = true;
-        
-
-        this->m_collision_number ++;
-        UInt64 non_collision_duration_ticks = current_tick - m_non_collision_start_tick;
-        if(!was_in_collision){ 
-         m_collision_start_tick = current_tick; // Start collision timer
-        }
-        m_collisionEnded = false;
-        UInt64 collision_duration = current_tick - m_collision_start_tick;
-        m_ticks_in_collisin = collision_duration;
-        m_currentCollisionBehavior = REPEL;
-        repel_vector = cDiffusionVector;
-        return BehaviorRepel(cDiffusionVector);
-      
-       for (const auto& sensor_reading : m_pcProximity->GetReadings()) {
-        // Add the vector in the opposite direction of the obstacle
-        this->repel_vector -= CVector2(sensor_reading.Value, 0.0).Rotate(sensor_reading.Angle);
-       }
-      
         if (!was_in_collision) {
             // Collision just started
             
             // Add one to the total collision counter
             this->m_collision_number ++;
 
-            // The time of free travel, we'll be use in the ML
+            // The time of free travel, just statistics
             UInt64 non_collision_duration_ticks = current_tick - m_non_collision_start_tick;
-            
             if (non_collision_duration_ticks > m_longest_non_collision_times[m_currentCollisionBehavior]) {
                 m_longest_non_collision_times[m_currentCollisionBehavior] = non_collision_duration_ticks;
             }
-           
             m_last_non_collision_duration = current_tick - m_non_collision_start_tick;
+
             m_collision_start_tick = current_tick; // Start collision timer
             m_collisionEnded = false;
-            //ChooseRandomBehavior();
             
+            //ChooseRandomBehavior();
             ChooseBehaviorUsingUCB();
         }
 
          //Check if the collision taking too long. If it is, change the behavior
-         //UInt64 collision_duration = current_tick - m_collision_start_tick; //need this line
+         UInt64 collision_duration = current_tick - m_collision_start_tick; //need this line
          m_ticks_in_collisin = collision_duration;
          // Check if the collision has exceeded the maximum allowed duration
          if (collision_duration > MAX_COLLISION_DURATION_TICKS) {
             this->m_collision_number ++;
          // Log the timeout event
             LOG << "[Robot " << GetId() << "] Collision timeout reached. Switching behavior.\n";
-            LogCollisionDetails(m_collision_start_tick, current_tick, m_currentCollisionBehavior);
+            LogCollisionDetails(m_collision_start_tick, current_tick-1, m_currentCollisionBehavior);
 
             // Collision-ending updates
             // Add one to the specific collision counter
@@ -549,7 +520,16 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
     }
 }
 
+void collision_start_setting(){
 
+}
+
+void CFootBotForaging::collision_ending_updates(UInt64 collision_duration){
+   // Add one to the specific collision counter
+            this->m_SBehaviorMetrics[static_cast<int>(this->m_currentCollisionBehavior)].times_selected +=1;
+            // Add the douretion of the collision just add so we can update the avg reward next time
+            this->m_SBehaviorMetrics[static_cast<int>(this->m_currentCollisionBehavior)].total_collision_time += MAX_COLLISION_DURATION_TICKS;
+}
 
 
 
