@@ -349,7 +349,7 @@ private:
       do in a collision.
    */
    enum ECollisionBehavior {
-    TURN_180,
+    //TURN_180,
     STOP,
     DEFAULT,
     REPEL,
@@ -363,8 +363,6 @@ private:
 
    UInt64 m_collision_start_tick; // Tick when the current collision started
    UInt64 m_non_collision_start_tick; // Tick when the non-collision period started
-   UInt64 m_last_non_collision_duration; // Duration of the last collision for each behavior
-   std::vector<double> m_last_behavior_durations; // Duration of the last collision for each behavior
    
    std::vector<double> m_longest_non_collision_times; // Longest non-collision duration per behavior
    std::vector<double> m_shortest_collision_durations; // Shortest collision duration per behavior
@@ -379,8 +377,7 @@ private:
    void ChooseRandomBehavior();
    CVector2 BehaviorStop();
    CVector2 BehaviorDefault(CVector2 cDiffusionVector);
-   CVector2 BehaviorRepel(CVector2 cDiffusionVector);
-   CVector2 BehaviorTurn(CVector2 cDiffusionVector);
+   CVector2 BehaviorRepel();
    UInt64 m_collision_number;
    UInt64 m_ticks_in_collisin;
    void ChooseBehaviorUsingUCB();
@@ -407,7 +404,9 @@ private:
    void LogCollisionDetails(UInt64 collision_start_tick, UInt64 collision_end_tick, 
                          ECollisionBehavior current_behavior);
    
-
+   void collision_ending_updates(UInt64 collsion_duration);
+   void BehaviorChooseMethod();
+   void DefaultBehavior();
 };
 
 #endif
