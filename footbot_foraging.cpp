@@ -119,10 +119,7 @@ CFootBotForaging::CFootBotForaging() :
 }
 
 CFootBotForaging::~CFootBotForaging() {
-    //LogBehaviorStatistics();
-    if (m_log_file.is_open()) {
-        m_log_file.close();
-    }
+    
 }
 
 /****************************************/
@@ -158,13 +155,18 @@ void CFootBotForaging::Init(TConfigurationNode& t_node) {
     */
    
    
-   LOG << "Robot initialized with ID: " << GetId() << std::endl;
    // Create a unique log file for each robot
    std::string filename = "collision_log_" + GetId() + ".txt";
-   m_log_file.open(filename, std::ios::out | std::ios::trunc);
-   if (!m_log_file.is_open()) {
-      LOGERR << "Failed to open log file for robot " << GetId() << std::endl;
+   try{
+      m_log_file.open(filename, std::ios::out | std::ios::trunc);
+      if (!m_log_file.is_open()) {
+         LOGERR << "Failed to open log file for robot " << GetId() << std::endl;
+      }
    }
+   catch(...){
+         LOGERR << "Error. Failed to open file" << std::endl;
+   }
+   
 
    
 
@@ -276,9 +278,10 @@ void CFootBotForaging::LogCollisionDetails(UInt64 collision_start_tick, UInt64 c
     if (m_log_file.is_open()) {
         // Collision duration
         UInt64 collision_duration = collision_end_tick - collision_start_tick;
-        if (collision_duration-1 > MAX_COLLISION_DURATION_TICKS){
-         LOG<<"ERROR in tick "<< collision_end_tick<< std::endl;
-        }
+        /*if (collision_duration-1 > MAX_COLLISION_DURATION_TICKS){
+         LOG<<"ERROR in tick "<< collision_end_tick<< ". IN robot "<< this->GetId()<<" . In bheavior "
+         << this->BehaviorToString(current_behavior)<<std::endl;
+        }*/
         // Log details
         m_log_file << "Collision Start Tick: " << collision_start_tick << "\n";
         m_log_file << "Collision End Tick: " << collision_end_tick << "\n";
@@ -309,30 +312,12 @@ std::string CFootBotForaging::BehaviorToString(ECollisionBehavior e) const {
     }
 }
 
-void CFootBotForaging::LogCollisionData(UInt64 collision_duration_ticks, UInt64 non_collision_duration_ticks, UInt64 collision_end_tick) {
-    if (m_log_file.is_open()) {
-        
-        m_log_file << "Collision Summary:\n"
-                   << "  Time since last collision (ticks): " << non_collision_duration_ticks << "\n"
-                   << "  Collision start tick: " << (m_collision_start_tick) << "\n"
-                   << "  Collision end tick: " << collision_end_tick << "\n"
-                   << "  Collision duration (ticks): " << collision_duration_ticks << "\n"
-                   << "  Chosen behavior: " << BehaviorToString(this->m_currentCollisionBehavior) << "\n\n";
-    }
-}
 
-void CFootBotForaging::LogBehaviorStatistics() {
-    if (m_log_file.is_open()) {
-        m_log_file << "\n=== Behavior Statistics ===\n";
-        for (size_t i = 0; i < NUMBER_OF_BEHAVIORS; ++i) {
-            m_log_file << "Behavior: " << BehaviorToString(static_cast<ECollisionBehavior>(i)) << "\n";
-            m_log_file << "  Longest Non-Collision Time: " << m_longest_non_collision_times[i] << " ticks\n";
-            m_log_file << "  Shortest Collision Duration: " << m_shortest_collision_durations[i] << " ticks\n\n";
-        }
-    }
-}
 void CFootBotForaging::Destroy(){
-   
+   //LogBehaviorStatistics();
+    if (m_log_file.is_open()) {
+        m_log_file.close();
+    }
 }
 void CFootBotForaging::ChooseRandomBehavior() {
     // Randomly select a behavior
@@ -492,7 +477,8 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
          m_ticks_in_collisin = current_tick - m_collision_start_tick;
          if (m_ticks_in_collisin > MAX_COLLISION_DURATION_TICKS) {
             // Log the timeout event
-            LOG << "[Robot " << GetId() << "] Collision timeout reached. Switching behavior.\n";
+            //LOG << "[Robot " << GetId() << "] Collision timeout reached. Switching behavior.\n";
+            
             LogCollisionDetails(m_collision_start_tick, current_tick-1, m_currentCollisionBehavior);
 
             // Collision-ending updates
