@@ -13,3 +13,6 @@ The UCB score of each behavior is:
 ucb_score = -avg_reward + exploration_factor * sqrt(log((m_collision_number)) / metrics.times_selected),
 where avg_reward is the avg time of collision in this behavior. Its negetive because the goal is to reduce 
 the duraion of collisions.
+
+At first, the UCB score of every behavior is the <double>::max() to make sure that 
+each will be choosen atleat once.
