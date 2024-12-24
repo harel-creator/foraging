@@ -356,7 +356,6 @@ private:
     NUMBER_OF_BEHAVIORS
    };
 
-   void LogBehaviorStatistics();
 
    // File stream for logging
    std::ofstream m_log_file;
@@ -372,7 +371,6 @@ private:
    ECollisionBehavior m_currentCollisionBehavior;
 
    // Method for logging data
-   void LogCollisionData(UInt64 collision_duration_ticks, UInt64 non_collision_duration_ticks, UInt64 collision_end_tick);
    std::string BehaviorToString(ECollisionBehavior e) const;
    void ChooseRandomBehavior();
    CVector2 BehaviorStop();
@@ -401,8 +399,7 @@ private:
    CVector2 repel_vector;
    // Maximum duration for a single collision before switching behavior
    const UInt64 MAX_COLLISION_DURATION_TICKS = 60;
-   void LogCollisionDetails(UInt64 collision_start_tick, UInt64 collision_end_tick, 
-                         ECollisionBehavior current_behavior);
+   //void LogCollisionDetails(UInt64 collision_start_tick, UInt64 collision_end_tick, ECollisionBehavior current_behavior);
    
    void collision_ending_updates(UInt64 collsion_duration);
    void BehaviorChooseMethod();

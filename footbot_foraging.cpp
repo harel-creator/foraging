@@ -156,7 +156,7 @@ void CFootBotForaging::Init(TConfigurationNode& t_node) {
    
    
    // Create a unique log file for each robot
-   std::string filename = "collision_log_" + GetId() + ".txt";
+   /*std::string filename = "collision_log_" + GetId() + ".txt";
    try{
       m_log_file.open(filename, std::ios::out | std::ios::trunc);
       if (!m_log_file.is_open()) {
@@ -165,7 +165,7 @@ void CFootBotForaging::Init(TConfigurationNode& t_node) {
    }
    catch(...){
          LOGERR << "Error. Failed to open file" << std::endl;
-   }
+   }*/
    
 
    
@@ -272,16 +272,16 @@ CVector2 CFootBotForaging::CalculateVectorToLight() {
       return CVector2();
    }
 }
-
+/*
 void CFootBotForaging::LogCollisionDetails(UInt64 collision_start_tick, UInt64 collision_end_tick, 
                          ECollisionBehavior current_behavior) {
     if (m_log_file.is_open()) {
         // Collision duration
         UInt64 collision_duration = collision_end_tick - collision_start_tick;
-        /*if (collision_duration-1 > MAX_COLLISION_DURATION_TICKS){
+        if (collision_duration-1 > MAX_COLLISION_DURATION_TICKS){
          LOG<<"ERROR in tick "<< collision_end_tick<< ". IN robot "<< this->GetId()<<" . In bheavior "
          << this->BehaviorToString(current_behavior)<<std::endl;
-        }*/
+        }
         // Log details
         m_log_file << "Collision Start Tick: " << collision_start_tick << "\n";
         m_log_file << "Collision End Tick: " << collision_end_tick << "\n";
@@ -299,12 +299,11 @@ void CFootBotForaging::LogCollisionDetails(UInt64 collision_start_tick, UInt64 c
 
         m_log_file << "---------------------------------\n";
     }
-}
+}*/
 
 
 std::string CFootBotForaging::BehaviorToString(ECollisionBehavior e) const {
     switch (e) {
-        //case TURN_180: return "TURN_180";
         case STOP: return "STOP";
         case DEFAULT: return "DEFAULT";
         case REPEL : return "REPEl";
@@ -364,6 +363,7 @@ CVector2 CFootBotForaging::BehaviorDefault(CVector2 cDiffusionVector){
 CVector2 CFootBotForaging::BehaviorRepel(){
    //Its take the footboot about 22 ticks in this angle to make ~180 turn
    // He do so in the beggining of the collision and in the end of it
+   
    /*if ((this->m_ticks_in_collisin < 22) || (this->m_ticks_in_collisin > (MAX_COLLISION_DURATION_TICKS -22))){
       return CVector2(1.0f,1.0f).Rotate(CRadians::PI);
    }*/
@@ -380,9 +380,6 @@ CVector2 CFootBotForaging::BehaviorRepel(){
 /****************************************/
 CVector2 CFootBotForaging::handleCollision(CVector2 cDiffusionVector) {
    switch (this->m_currentCollisionBehavior) {
-      /*case TURN_180: 
-         //actally kindda turn left
-         return BehaviorTurn(cDiffusionVector);*/
       case STOP:
          return BehaviorStop();
       case DEFAULT:
@@ -444,7 +441,7 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
             }
             
             // Log data
-            LogCollisionDetails(m_collision_start_tick, current_tick, m_currentCollisionBehavior);
+            //LogCollisionDetails(m_collision_start_tick, current_tick, m_currentCollisionBehavior);
             // Reset non-collision timer
             m_non_collision_start_tick = current_tick;
         }
@@ -479,7 +476,7 @@ CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
             // Log the timeout event
             //LOG << "[Robot " << GetId() << "] Collision timeout reached. Switching behavior.\n";
             
-            LogCollisionDetails(m_collision_start_tick, current_tick-1, m_currentCollisionBehavior);
+            //LogCollisionDetails(m_collision_start_tick, current_tick-1, m_currentCollisionBehavior);
 
             // Collision-ending updates
             collision_ending_updates(m_ticks_in_collisin);
