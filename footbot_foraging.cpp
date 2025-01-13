@@ -400,9 +400,6 @@ CVector2 CFootBotForaging::BehaviorRepel(){
 /****************************************/
 CVector2 CFootBotForaging::handleCollision(CVector2 cDiffusionVector) {
    switch (this->m_currentCollisionBehavior) {
-      /*case TURN_180: 
-         //actally kindda turn left
-         return BehaviorTurn(cDiffusionVector);*/
       case STOP:
          return BehaviorStop();
       case DEFAULT:
@@ -423,9 +420,9 @@ void CFootBotForaging::BehaviorChooseMethod(){
    //If you want a random behavior every collision, choose this
    //ChooseRandomBehavior();
    //If you want a behavior choosen by the UCB1 algorithem, choose this
-   //ChooseBehaviorUsingUCB();
+   ChooseBehaviorUsingUCB();
    //If you the same behavior every collision, choose this
-   DefaultBehavior();
+   //DefaultBehavior();
 }
 
 CVector2 CFootBotForaging::DiffusionVector(bool& b_collision) {
