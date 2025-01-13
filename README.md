@@ -1,5 +1,5 @@
 # foraging
-There are 3 folders in this project: footbot_learning_foraging should go in the controllers folder (next footbot_foraging). The file in the experiments folder, (.argos file) sould go with all the others .argos in the experiments folder. Finaly, the cmake file in the controller folder replace the one that in it by default (the only change there is "add_subdirectory(footbot_learning_foraging)").
+There are 2 folders in this project: footbot_learning_foraging should go in the controllers folder (next footbot_foraging).The cmake file in the controller folder replace the one that in it by default (the only change there is "add_subdirectory(footbot_learning_foraging)"). Finaly, the file in the experiments folder, (.argos file) sould go with all the others .argos in the experiments folder.
 
 After you do that you can build the project acording to the regular instructions, but run it with: 
     $ argos3 -c experiments/learning_foraging.argos
