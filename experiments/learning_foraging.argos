@@ -24,7 +24,7 @@
   <controllers>
 
     <footbot_foraging_controller id="ffc"
-                                 library="build/controllers/footbot_foraging/libfootbot_foraging">
+                                 library="build/controllers/footbot_learning_foraging/libfootbot_learning_foraging">
       <actuators>
         <differential_steering implementation="default" />
         <leds implementation="default" medium="leds" />
