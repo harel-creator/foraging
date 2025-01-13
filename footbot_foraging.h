@@ -398,7 +398,6 @@ private:
       };
 
    std::vector<SBehaviorMetrics> m_SBehaviorMetrics;
-   CVector2 repel_vector;
    // Maximum duration for a single collision before switching behavior
    const UInt64 MAX_COLLISION_DURATION_TICKS = 60;
    void LogCollisionDetails(UInt64 collision_start_tick, UInt64 collision_end_tick, 
