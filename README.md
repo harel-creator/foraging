@@ -1,5 +1,5 @@
 # foraging
-This is an extension of the argos 3 simulation, which uses the foraging example as a base. 
+This is an extension of the argos 3 simulation, which uses the foraging example as a base.
 There are 2 folders in this project: footbot_learning_foraging should go in the controllers folder (next footbot_foraging).The cmake file in the controller folder replace the one that in it by default (the only change there is "add_subdirectory(footbot_learning_foraging)"). Finaly, the file in the experiments folder, (.argos file) sould go with all the others .argos in the experiments folder.
 
 After you do that you can build the project acording to the regular instructions, but run it with: 
